@@ -35,7 +35,7 @@
 								v-for="city in cities"
 								:key="city.city_id"
 								:value="city.city_id"
-							>{{ city.city_name }}</option>
+							>{{ `${city.type} ${city.city_name}` }}</option>
 						</select>
 					</div>
 					<div class="form-control pb-5">
@@ -77,7 +77,7 @@
 			<p>Harga 	: {{ totalPrice.toLocaleString("id-ID", {style:"currency", currency:"IDR"}) }}</p>
 			<p>Ongkos	: {{ totalShipping.toLocaleString("id-ID", {style:"currency", currency:"IDR"}) }}</p>
 			<p>Total	: {{ bill.toLocaleString("id-ID", {style:"currency", currency:"IDR"}) }}</p>
-			<router-link @click="process" :to="{ name: 'Checkout' }" class="btn btn-primary">Checkout</router-link>
+			<button @click="process" class="btn btn-primary">Checkout</button>
 		</section>
 
 	</section>
@@ -86,6 +86,7 @@
 <script>
 	import CartController from '@/controllers/CartController.js'
 	import RajaongkirController from '@/controllers/RajaongkirController.js'
+	import OrderController from '@/controllers/OrderController.js'
 
 	export default{
 		name: 'Checkout',
@@ -94,15 +95,17 @@
 			return{
 				products				: null,
 				provinces				: null,
+				province				: null,
 				provinceId			: null,
 				cities 					: null,
+				city						: null,
 				cityId 					: null,
 				cityAvailable 	: false,
 				district 				: null,
 				recipient 			: null,
 				ward 						: null,
 				address1				: null,
-				address2				: null,
+				address2				: '',
 				zip							: null,
 				phone						: null,
 				totalPrice			: 0,
@@ -113,26 +116,35 @@
 		},
 
 		async mounted(){
+			this.totalPrice = 0
+			this.totalWeight = 0
 			this.provinces 	= (await RajaongkirController.printProvince()).data
 			// this.address 		= (await )
 			this.products = (await CartController.show({ userId : this.$store.state.userId })).data
-			let datum = 0
-			while (this.products[datum]) {
-				this.totalPrice 	= this.totalPrice + (this.products[datum].price * this.products[datum].width * this.products[datum].length * this.products[datum].qty)
-				this.totalWeight 	= this.totalWeight + (this.products[datum].weight * this.products[datum].width * this.products[datum].length * this.products[datum].qty)
-				datum++
-			}
+			this.products.forEach(item => {
+				this.totalPrice += item.subPrice
+				this.totalWeight += item.subWeight
+			})
     },
+
+		watch: {
+			totalShipping (val) {
+				this.bill = this.totalPrice + val
+			}
+		},
 
     methods: {
       async provinceSelected(){
         this.cities = (await RajaongkirController.showCity({ id : this.provinceId })).data
+				this.province = this.cities[0].province
 				this.cityAvailable = true
       },
 			async citySelected(){
 				console.log(this.cityId)
 				console.log(this.totalWeight)
-				this.zip = (await RajaongkirController.setZip({ id : this.cityId})).data.postal_code
+				this.zip = (await RajaongkirController.setZip({ id : this.cityId})).data
+				this.city = `${this.zip.type} ${this.zip.city_name}`
+				this.zip = this.zip.postal_code
 				const shipping = (await RajaongkirController.showCost({
 					destination : this.cityId,
 					weight 			: this.totalWeight
@@ -140,36 +152,28 @@
 				this.totalShipping = shipping.value
 				this.cityAvailable = true
 			},
-			async process(){
-				// orders{
-				// 	invoice:,
-				// 	email:,
-				// 	username:,
-				// 	recipient:,
-				// 	country:,
-				// 	province:,
-				// 	city:,
-				// 	district:,
-				// 	ward:,
-				// 	address1:,
-				// 	address2:,
-				// 	zip:,
-				// 	paymentMethod:,
-				// 	shipment:,
-				// 	shimpentCost:,
-				// 	status:,
-				// }
-				// orderDetails{
-				// 	orderId:,
-				// 	productId:,
-				// 	productName:,
-				// 	materialId:,
-				// 	materialName:,
-				// 	length:,
-				// 	width:,
-				// 	weight:,
-				// 	subtotal:,
-				// }
+			async process () {
+				try {
+					await OrderController.add({
+						userId: this.$store.state.userId,
+						email: this.$store.state.email,
+						username: this.$store.state.user,
+						recipient: this.recipient,
+						province: this.province,
+						city: this.city,
+						district: this.district,
+						ward: this.ward,
+						address1: this.address1,
+						address2: this.address2,
+						zip: this.zip,
+						paymentMethod: 'manual',
+						shipment: 'any',
+						shipmentCost: this.totalShipping,
+						phone: this.phone
+					})
+				} catch (err) {
+					console.log(err)
+				}
 			}
 		}
 	}

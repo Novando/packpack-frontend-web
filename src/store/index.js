@@ -6,6 +6,7 @@ export default createStore({
   strict: true,
   state: {
     apiUrl    : `${process.env.VUE_APP_API}/storage`,
+    email     : null,
     user      : null,
     userId    : null,
     role      : 'guest',
@@ -27,10 +28,12 @@ export default createStore({
     checkLogin (state, token) {
       state.token = token
       if (token == '' || token == null) {
+        state.email   = null
         state.user    = null
         state.role    = null
         state.userId  = null
       } else {
+        state.email   = jwt(token).getEmail
         state.user    = jwt(token).getUsername
         state.role    = jwt(token).getRole
         state.userId  = jwt(token).getId
@@ -40,8 +43,9 @@ export default createStore({
 
     logout (state) {
       state.user    = null
-      state.role    = null
+      state.role    = 'guest'
       state.userId  = null
+      state.email   = null
       state.token   = null
     }
   },

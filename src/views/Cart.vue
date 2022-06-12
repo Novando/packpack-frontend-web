@@ -9,17 +9,17 @@
 				<div v-for="product in products" :key="product.id" class="card lg:card-side card-bordered">
 					<figure class="m-10 object-contain">
 						<img class="object-contain h-40 w-40" v-if="product.mainImg" :src="$store.state.apiUrl + 'products/previews/' + product.mainImg">
-						<img class="object-contain h-40 w-40" v-else :src="$store.state.apiUrl + 'custom_products/' + product.designFiles">
+						<img class="object-contain h-40 w-40" v-else :src="$store.state.apiUrl + '/custom_products/' + product.designFiles">
 					</figure> 
 					<div class="card-body">
 						<h2 v-if="product.name" class="card-title">{{ product.name }}</h2>
 						<h2 v-else class="card-title">{{ product.brandName }}</h2>
 						<p>Harga : {{ 
-							(product.price * product.width * product.length * product.qty)
+							(product.subPrice)
 							.toLocaleString("id-ID", {style:"currency", currency:"IDR"}) 
 						}}</p>
 						<p>Berat : {{
-							(product.weight * product.width * product.length * product.qty)
+							(product.subWeight)
 							.toLocaleString("id-ID", {minimumFractionDigits: 2, maximumFractionDigits: 2})
 						}} kg</p>
 						<div class="card-actions">
@@ -58,14 +58,13 @@
 		},
 
 		async mounted(){
-			console.log(this.$store.state.userId)
+			this.totalPrice = 0
+			this.totalWeight = 0
 			this.products = (await CartController.show({ userId : this.$store.state.userId })).data
-			let datum = 0
-			while (this.products[datum]) {
-				this.totalPrice 	= this.totalPrice + (this.products[datum].price * this.products[datum].width * this.products[datum].length * this.products[datum].qty)
-				this.totalWeight 	= this.totalWeight + (this.products[datum].weight * this.products[datum].width * this.products[datum].length * this.products[datum].qty)
-				datum++
-			}
+			this.products.forEach(item => {
+				this.totalPrice += item.subPrice
+				this.totalWeight += item.subWeight
+			})
     },
 	}
 </script>
